@@ -33,12 +33,56 @@ describe('ReactOffscreenStrictMode', () => {
 
   // @gate __DEV__ && enableStrictEffects && enableOffscreen
   it('should trigger strict effects when offscreen is visible', () => {
+    function App({mode}) {
+      return (
+        <Offscreen mode={mode}>
+          <Component label="A" />
+        </Offscreen>
+      );
+    }
+
     act(() => {
       ReactNoop.render(
         <React.StrictMode>
-          <Offscreen mode="visible">
-            <Component label="A" />
-          </Offscreen>
+          <App mode="visible" />
+        </React.StrictMode>,
+      );
+    });
+
+    expect(log).toEqual([
+      'A: render',
+      'A: render',
+      'A: useLayoutEffect mount',
+      'A: useEffect mount',
+      'A: useLayoutEffect unmount',
+      'A: useEffect unmount',
+      'A: useLayoutEffect mount',
+      'A: useEffect mount',
+    ]);
+
+    log = [];
+
+    act(() => {
+      ReactNoop.render(
+        <React.StrictMode>
+          <App mode="hidden" />
+        </React.StrictMode>,
+      );
+    });
+
+    expect(log).toEqual([
+      'A: useLayoutEffect unmount',
+      'A: useEffect unmount', // Offscreen is hidden, useEffect is unmounted
+      'A: render',
+      'A: render',
+    ]);
+
+    log = [];
+
+    act(() => {
+      ReactNoop.render(
+        <React.StrictMode>
+          <App mode="visible" />
         </React.StrictMode>,
       );
     });
@@ -203,13 +247,6 @@ describe('ReactOffscreenStrictMode', () => {
       );
     });
 
-    log.push('------------------------------');
-
-    await act(async () => {
-      resolve();
-      shouldSuspend = false;
-    });
-
     expect(log).toEqual([
       'Parent rendered',
       'Parent rendered',
@@ -218,11 +255,18 @@ describe('ReactOffscreenStrictMode', () => {
       'Parent mount',
       'Parent unmount',
       'Parent mount',
-      '------------------------------',
+    ]);
+
+    log = [];
+
+    await act(async () => {
+      resolve();
+      shouldSuspend = false;
+    });
+
+    expect(log).toEqual([
       'Child rendered',
       'Child rendered',
-      'Child mount',
-      'Child unmount',
       'Child mount',
     ]);
   });
